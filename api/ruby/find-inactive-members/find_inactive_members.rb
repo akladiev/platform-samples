@@ -188,6 +188,27 @@ private
     end
   end
 
+  def review_activity(repo)
+    # get all pull request reviews after specified date and iterate
+    info "...reviews"
+    begin
+      @client.list_issues(repo, :since => date, :state => "all").each do |issue|
+        if !issue["pull_request"].nil?
+          @client.pull_request_reviews(repo, issue["pull_request"]["url"].rpartition('/').last).each do |review|
+            #info "...pr: #{issue["pull_request"]["url"]}\nreview: #{review["user"]["login"]}\n"
+            if t = @members.find {|member| member[:login] == review["user"]["login"] && member[:active] == false }
+              make_active(t[:login])
+            end
+          end
+        end
+      end
+    rescue Octokit::Conflict
+      info "...no reviews"
+    rescue Octokit::NotFound
+      info "...no reviews"
+    end
+  end
+
  def member_activity
     @repos_completed = 0
     # print update to terminal
@@ -202,6 +223,7 @@ private
       issue_activity(repo)
       issue_comment_activity(repo)
       pr_activity(repo)
+      review_activity(repo)
 
       # print update to terminal
       @repos_completed += 1
